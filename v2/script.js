@@ -50,6 +50,7 @@ Chat = {
         bttvBadges: null,
         seventvBadges: null,
         chatterinoBadges: null,
+        homiesBadges: null,
         cheers: {},
         lines: [],
         blockedUsers: ('block' in $.QueryString ? $.QueryString.block.toLowerCase().split(',') : false),
@@ -101,6 +102,28 @@ Chat = {
                     };
                 });
             });
+        });
+
+        $.getJSON('https://itzalex.github.io/emotes').done(function(res) {
+            let global_emotes = res.data.global_emotes;
+            let channel_emotes = res.data.channel_emotes;
+
+            global_emotes.forEach(emote => {
+                Chat.info.emotes[emote.name] = {
+                    id: emote.id,
+                    image: `https://itzalex.github.io/emote/${emote.id}/3x`
+                };
+            });
+
+            if (channelID in channel_emotes)
+            {
+                channel_emotes[channelID].emotes.forEach(emote => {
+                    Chat.info.emotes[emote.name] = {
+                        id: emote.id,
+                        image: `https://itzalex.github.io/emote/${emote.id}/3x`
+                    };
+                });
+            }
         });
     },
 
@@ -308,6 +331,9 @@ Chat = {
                 $.getJSON('https://api.chatterino.com/badges').done(function(res) {
                     Chat.info.chatterinoBadges = res.badges;
                 });
+                $.getJSON('https://itzalex.github.io/badges').done(function(res) {
+                    Chat.info.homiesBadges = res.badges;
+                });
             }
 
             // Load cheers images
@@ -400,7 +426,18 @@ Chat = {
                     if (user === userId) {
                         var userBadge = {
                             description: badge.tooltip,
-                            url: badge.image3 || badge.image2 || badge.image1
+                            url: badge.image3
+                        };
+                        if (!Chat.info.userBadges[nick].includes(userBadge)) Chat.info.userBadges[nick].push(userBadge);
+                    }
+                });
+            });
+            Chat.info.homiesBadges.forEach(badge => {
+                badge.users.forEach(user => {
+                    if (user === userId) {
+                        var userBadge = {
+                            description: badge.tooltip,
+                            url: badge.image3
                         };
                         if (!Chat.info.userBadges[nick].includes(userBadge)) Chat.info.userBadges[nick].push(userBadge);
                     }
@@ -648,7 +685,7 @@ Chat = {
                             }
 
                             if (!Chat.info.hideBadges) {
-                                if (Chat.info.bttvBadges && Chat.info.seventvBadges && Chat.info.chatterinoBadges && !Chat.info.userBadges[nick]) Chat.loadUserBadges(nick, message.tags['user-id']);
+                                if (Chat.info.bttvBadges && Chat.info.seventvBadges && Chat.info.chatterinoBadges && Chat.info.homiesBadges && !Chat.info.userBadges[nick]) Chat.loadUserBadges(nick, message.tags['user-id']);
                             }
 
                             Chat.write(nick, message.tags, message.params[1]);
