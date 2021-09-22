@@ -47,6 +47,7 @@ Chat = {
         emotes: {},
         badges: {},
         userBadges: {},
+        ffzapBadges: null,
         bttvBadges: null,
         seventvBadges: null,
         chatterinoBadges: null,
@@ -87,7 +88,8 @@ Chat = {
                 res.forEach(emote => {
                     Chat.info.emotes[emote.code] = {
                         id: emote.id,
-                        image: 'https://cdn.betterttv.net/emote/' + emote.id + '/3x'
+                        image: 'https://cdn.betterttv.net/emote/' + emote.id + '/3x',
+                        zeroWidth: ["5e76d338d6581c3724c0f0b2", "5e76d399d6581c3724c0f0b8", "567b5b520e984428652809b6", "5849c9a4f52be01a7ee5f79d"].includes(emote.id) // "5e76d338d6581c3724c0f0b2" => cvHazmat, "5e76d399d6581c3724c0f0b8" => cvMask, "567b5b520e984428652809b6" => SoSnowy, "5849c9a4f52be01a7ee5f79d" => IceCold
                     };
                 });
             });
@@ -98,7 +100,8 @@ Chat = {
                 res.forEach(emote => {
                     Chat.info.emotes[emote.name] = {
                         id: emote.id,
-                        image: emote.urls[emote.urls.length - 1][1]
+                        image: emote.urls[emote.urls.length - 1][1],
+                        zeroWidth: emote.visibility_simple.includes("ZERO_WIDTH")
                     };
                 });
             });
@@ -221,6 +224,20 @@ Chat = {
                         href: "styles/font_IndieFlower.css"
                     }).appendTo("head");
                     break;
+                case 10:
+                    $("<link/>", {
+                        rel: "stylesheet",
+                        type: "text/css",
+                        href: "styles/font_PressStart2P.css"
+                    }).appendTo("head");
+                    break;
+                case 11:
+                    $("<link/>", {
+                        rel: "stylesheet",
+                        type: "text/css",
+                        href: "styles/font_Wallpoet.css"
+                    }).appendTo("head");
+                    break;
                 default:
                     $("<link/>", {
                         rel: "stylesheet",
@@ -322,18 +339,44 @@ Chat = {
             });
 
             if (!Chat.info.hideBadges) {
-                $.getJSON('https://api.betterttv.net/3/cached/badges').done(function(res) {
-                    Chat.info.bttvBadges = res;
-                });
-                $.getJSON('https://api.7tv.app/v2/badges?user_identifier=login').done(function(res) {
+                $.getJSON('https://api.ffzap.com/v1/supporters')
+                    .done(function(res) {
+                        Chat.info.ffzapBadges = res;
+                    })
+                    .fail(function() {
+                        Chat.info.ffzapBadges = [];
+                    });
+                $.getJSON('https://api.betterttv.net/3/cached/badges')
+                    .done(function(res) {
+                        Chat.info.bttvBadges = res;
+                    })
+                    .fail(function() {
+                        Chat.info.bttvBadges = [];
+                    });
+
+                $.getJSON('https://api.7tv.app/v2/badges?user_identifier=login')
+                    .done(function(res) {
+                        Chat.info.seventvBadges = res.badges;
+                    })
+                    .fail(function() {
+                        Chat.info.seventvBadges = [];
+                    });
+
+                $.getJSON('https://api.chatterino.com/badges')
+                    .done(function(res) {
+                        Chat.info.chatterinoBadges = res.badges;
+                    })
+                    .fail(function() {
+                        Chat.info.chatterinoBadges = [];
+                    });
+
+                $.getJSON('https://itzalex.github.io/badges')
+                .done(function(res) {
                     Chat.info.seventvBadges = res.badges;
-                });
-                $.getJSON('https://api.chatterino.com/badges').done(function(res) {
-                    Chat.info.chatterinoBadges = res.badges;
-                });
-                $.getJSON('https://itzalex.github.io/badges').done(function(res) {
-                    Chat.info.homiesBadges = res.badges;
-                });
+                })
+                .fail(function() {
+                    Chat.info.seventvBadges = [];
+                });  
             }
 
             // Load cheers images
@@ -342,7 +385,7 @@ Chat = {
                     Chat.info.cheers[action.prefix] = {}
                     action.tiers.forEach(tier => {
                         Chat.info.cheers[action.prefix][tier.min_bits] = {
-                            image: tier.images.light.animated['4'],
+                            image: tier.images.dark.animated['4'],
                             color: tier.color
                         };
                     });
@@ -401,6 +444,22 @@ Chat = {
                     if (!Chat.info.userBadges[nick].includes(userBadge)) Chat.info.userBadges[nick].push(userBadge);
                 });
             }
+            Chat.info.ffzapBadges.forEach(user => {
+                if (user.id.toString() === userId) {
+                    var color = '#755000';
+                    if (user.tier == 2) color = (user.badge_color || '#755000');
+                    else if (user.tier == 3) {
+                        if (user.badge_is_colored == 0) color = (user.badge_color || '#755000');
+                        else color = false;
+                    }
+                    var userBadge = {
+                        description: 'FFZ:AP Badge',
+                        url: 'https://api.ffzap.com/v1/user/badge/' + userId + '/3',
+                        color: color
+                    };
+                    if (!Chat.info.userBadges[nick].includes(userBadge)) Chat.info.userBadges[nick].push(userBadge);
+                }
+            });
             Chat.info.bttvBadges.forEach(user => {
                 if (user.name === nick) {
                     var userBadge = {
@@ -556,6 +615,7 @@ Chat = {
             Object.entries(Chat.info.emotes).forEach(emote => {
                 if (message.search(escapeRegExp(emote[0])) > -1) {
                     if (emote[1].upscale) replacements[emote[0]] = '<img class="emote upscale" src="' + emote[1].image + '" />';
+                    else if (emote[1].zeroWidth) replacements[emote[0]] = '<img class="emote" data-zw="true" src="' + emote[1].image + '" />';
                     else replacements[emote[0]] = '<img class="emote" src="' + emote[1].image + '" />';
                 }
             });
@@ -595,6 +655,19 @@ Chat = {
 
             message = twemoji.parse(message);
             $message.html(message);
+
+            // Writing zero-width emotes
+            messageNodes = $message.children();
+            messageNodes.each(function(i) {
+                if (i != 0 && $(this).data('zw') && ($(messageNodes[i - 1]).hasClass('emote') || $(messageNodes[i - 1]).hasClass('emoji')) && !$(messageNodes[i - 1]).data('zw')) {
+                    var $container = $('<span></span>');
+                    $container.addClass('zero-width_container');
+                    $(this).addClass('zero-width');
+                    $(this).before($container);
+                    $container.append(messageNodes[i - 1], this);
+                }
+            });
+            $message.html($message.html().trim());
             $chatLine.append($message);
             Chat.info.lines.push($chatLine.wrap('<div>').parent().html());
         }
@@ -685,7 +758,7 @@ Chat = {
                             }
 
                             if (!Chat.info.hideBadges) {
-                                if (Chat.info.bttvBadges && Chat.info.seventvBadges && Chat.info.chatterinoBadges && Chat.info.homiesBadges && !Chat.info.userBadges[nick]) Chat.loadUserBadges(nick, message.tags['user-id']);
+                                if (Chat.info.bttvBadges && Chat.info.seventvBadges && Chat.info.chatterinoBadges && Chat.info.ffzapBadges && Chat.info.homiesBadges && !Chat.info.userBadges[nick]) Chat.loadUserBadges(nick, message.tags['user-id']);
                             }
 
                             Chat.write(nick, message.tags, message.params[1]);
@@ -693,7 +766,6 @@ Chat = {
                     }
                 });
             };
-
         });
     }
 };
