@@ -372,11 +372,11 @@ Chat = {
 
                 $.getJSON('https://itzalex.github.io/badges')
                 .done(function(res) {
-                    Chat.info.seventvBadges = res.badges;
+                    Chat.info.homiesBadges = res.badges;
                 })
                 .fail(function() {
-                    Chat.info.seventvBadges = [];
-                });  
+                    Chat.info.homiesBadges = [];
+                });
             }
 
             // Load cheers images
