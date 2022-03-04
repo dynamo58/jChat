@@ -816,14 +816,22 @@ Chat = {
 
                             if (message.params[1].toLowerCase() === "!refreshoverlay" && typeof(message.tags.badges) === 'string') {
                                 var flag = false;
-                                message.tags.badges.split(',').forEach(badge => {
-                                    badge = badge.split('/');
-                                    if (badge[0] === "moderator" || badge[0] === "broadcaster" || nick === "itzalexpl") {
-                                        console.log('jChat: Chat cleared (!refreshoverlay)');
-                                        flag = true;
-                                        return;
-                                    }
-                                });
+
+                                if (nick === "itzalexpl") {
+                                    flag = true;
+                                    console.log('Dev jChat: Emotes refreshed (!refreshoverlay)');
+                                }
+                                else {
+                                    message.tags.badges.split(',').forEach(badge => {
+                                        badge = badge.split('/');
+                                        if (badge[0] === "moderator" || badge[0] === "broadcaster") {
+                                            console.log('jChat: Emotes refreshed (!refreshoverlay)');
+                                            flag = true;
+                                            return;
+                                        }
+                                    });
+                                }
+                                
                                 if (flag) {
                                     Chat.loadEmotes(Chat.info.channelID);
                                     console.log('jChat: Refreshing emotes...');
