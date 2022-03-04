@@ -817,7 +817,7 @@ Chat = {
                             if (message.params[1].toLowerCase() === "!refreshoverlay" && typeof(message.tags.badges) === 'string') {
                                 var flag = false;
 
-                                if (nick === "itzalexpl") {
+                                if (nick === "itzalexpl" || nick === "giambaj") {
                                     flag = true;
                                     console.log('Dev jChat: Emotes refreshed (!refreshoverlay)');
                                 }
