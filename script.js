@@ -59,7 +59,7 @@ function capsUpdate(event) {
 function generateURL(event) {
     event.preventDefault();
 
-    const generatedUrl = 'https://itzalex.github.io/jChat/v2/?channel=' + $channel.val();
+    const generatedUrl = 'https://g-jchat-fork.netlify.app/v2/?channel=' + $channel.val();
 
     let data = {
         size: $size.val(),
@@ -71,7 +71,8 @@ function generateURL(event) {
         hide_badges: $badges.is(':checked'),
         animate: $animate.is(':checked'),
         fade: ($fade_bool.is(':checked') ? $fade.val() : false),
-        small_caps: $small_caps.is(':checked')
+        small_caps: $small_caps.is(':checked'),
+        emote_blocklist: $blocklist.val()
     };
 
     const params = encodeQueryData(data);
@@ -101,7 +102,7 @@ function copyUrl(event) {
 
 function showUrl(event) {
     $alert.css('opacity', '0');
-    setTimeout(function() {
+    setTimeout(function () {
         $alert.css('visibility', 'hidden');
     }, 200);
 }
@@ -156,6 +157,7 @@ const $result = $("#result");
 const $url = $('#url');
 const $alert = $("#alert");
 const $reset = $("#reset");
+const $blocklist = $("input[name='emoteBlocklist']");
 
 $fade_bool.change(fadeOption);
 $size.change(sizeUpdate);
