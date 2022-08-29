@@ -1,3 +1,9 @@
+function* entries(obj) {
+    for (let key of Object.keys(obj)) {
+        yield [key, obj[key]];
+    }
+}
+
 (function ($) { // Thanks to BrunoLM (https://stackoverflow.com/a/3855394)
     $.QueryString = (function (paramsArray) {
         let params = {};
@@ -27,33 +33,21 @@ function escapeHtml(message) {
         .replace(/(>)(?!\()/g, "&gt;");
 }
 
-/*function TwitchAPI(url) {
-    return $.getJSON(url + (url.search(/\?/) > -1 ? '&' : '?') + 'client_id=' + client_id);
-}*/
-
-/*function myAPI(url) {
-    return $.ajax({
-        beforeSend: function(request) {
-            request.setRequestHeader("Authorization", "Basic " + btoa(credentials));
-        },
-        dataType: "json",
-        url: "https://api.giambaj.it" + url
-    });
-}*/
-
-function myAPI(url) {
-    return $.ajax({
-        beforeSend: function (request) {
-            request.setRequestHeader("Client-Id", "p31p8buadkrrel3fdzq7268cq6q7li");
-            request.setRequestHeader("Authorization", "Bearer natft60poc07wp82wr3r1egzm6gckg");
-        },
-        dataType: "json",
-        url: "https://api.twitch.tv/helix" + url
-    });
+function myAPI(e) {
+    return fetch("https://dynamo58-relay.deno.dev/twitch", {
+        method: "POST",
+        mode: 'cors',
+        body: JSON.stringify({ endpoint: e }),
+        headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+        }
+    })
 }
 
 Chat = {
     info: {
+        seventvPaints: null,
         channel: null,
         animate: ('animate' in $.QueryString ? ($.QueryString.animate.toLowerCase() === 'true') : false),
         showBots: ('bots' in $.QueryString ? ($.QueryString.bots.toLowerCase() === 'true') : false),
@@ -72,15 +66,116 @@ Chat = {
         bttvBadges: null,
         seventvBadges: null,
         chatterinoBadges: null,
-        homiesBadges: null,
-        homiesBadges2: null,
-        homiesBadges3: null,
         cheers: {},
         lines: [],
         blockedUsers: ('block' in $.QueryString ? $.QueryString.block.toLowerCase().split(',') : false),
         bots: ['streamelements', 'streamlabs', 'nightbot', 'moobot', 'fossabot'],
         nicknameColor: ('cN' in $.QueryString ? $.QueryString.cN : false),
-        emote_blocklist: ('emote_blocklist' in $.QueryString ? $.QueryString.emote_blocklist.split(',') : false),
+        emote_blocklist: ('emote_blocklist' in $.QueryString ? $.QueryString.emote_blocklist.split(',') : []),
+    },
+
+    loadCosmetics: function (channelID) {
+        // https://api.7tv.app/v2/cosmetics/?user_identifier=login
+        // user_identifier: "object_id", "twitch_id", "login"
+        let user_identifier = 'login';
+
+        Chat.info.seventvPaints = [];
+
+        let stvPromise = new Promise(function (resolve, reject) {
+            (async () => {
+                setTimeout(() => { resolve(false); }, 5000);
+                $.getJSON('https://7tv.io/v2/cosmetics?user_identifier=' + user_identifier).done(function (res) {
+                    Chat.info.seventvPaints = res.paints;
+                    resolve(true);
+                });
+            })();
+        });
+
+        return new Promise(function (resolve, reject) {
+            (async () => {
+                await stvPromise;
+                resolve(true);
+            })();
+        });
+    },
+
+    calcPaintsCSS: function (nick) {
+        // 7TV username paints
+
+        let userPaint = false;
+        let userPaintCSS = false;
+        Chat.info.seventvPaints.forEach(paint => {
+            if (paint.users.includes(nick))
+                userPaint = paint;
+        });
+        if (userPaint) {
+            let paint = userPaint;
+
+            // let getCSSColorFromInt = (num) => ('#' + num.toString(16).padStart(6, '0'));
+            let getCSSColorFromInt = (num) => {
+                const red = num >>> 24 & 255;
+                const green = num >>> 16 & 255;
+                const blue = num >>> 8 & 255;
+                const alpha = num & 255;
+                return `rgba(${red}, ${green}, ${blue}, ${alpha / 255})`
+            }
+
+            let bgFunc;
+            let bgFuncArgs = [];
+            let isGradient = true;
+            switch (paint.function) {
+                case 'linear-gradient':
+                    bgFunc = `${paint.repeat ? 'repeating-' : ''}linear-gradient`;
+                    bgFuncArgs.push(`${paint.angle}deg`);
+                    break;
+                case 'radial-gradient':
+                    bgFunc = `${paint.repeat ? 'repeating-' : ''}radial-gradient`;
+                    bgFuncArgs.push(paint.shape || 'circle');
+                    break;
+                case 'url':
+                    bgFunc = 'url';
+                    bgFuncArgs.push(paint.image_url || '""');
+                    isGradient = false;
+                    break;
+                default:
+                    return null;
+            }
+
+            if (isGradient && paint.stops instanceof Array) {
+                for (let stop of paint.stops) {
+                    bgFuncArgs.push(`${getCSSColorFromInt(stop.color)} ${stop.at * 100}%`);
+                }
+            }
+
+            let background = `${bgFunc}(${bgFuncArgs.join(', ')})`;
+
+            let defaultColor;
+            if (paint.color) {
+                defaultColor = getCSSColorFromInt(paint.color);
+            }
+
+            let dropShadow;
+            if (paint.drop_shadow) {
+                let shadow = paint.drop_shadow;
+                dropShadow = `drop-shadow(${shadow.x_offset}px ${shadow.y_offset}px ${shadow.radius}px ${getCSSColorFromInt(shadow.color)})`;
+            }
+
+            userPaintCSS = {
+                'background-image': background,
+                'background-size': 'cover',
+                'background-clip': 'text',
+                '-webkit-background-clip': 'text',
+                '-webkit-text-fill-color': 'transparent',
+                'background-color': 'currentColor',
+                'text-shadow': 'none', // Removing global shadow (ChatIS setting)
+            }
+
+            if (dropShadow)
+                userPaintCSS['filter'] = `${dropShadow};`;
+            if (defaultColor)
+                userPaintCSS['color'] = `${defaultColor} !important;`;
+        }
+        return userPaintCSS;
     },
 
     loadEmotes: function (channelID) {
@@ -132,35 +227,43 @@ Chat = {
                 });
             });
         });
+    },
 
-        $.getJSON('https://itzalex.github.io/emotes').done(function (res) {
-            let global_emotes = res.data.global_emotes;
-            let channel_emotes = res.data.channel_emotes;
+    init_7tv_eventsub: () => {
+        const source = new EventSource(
+            `https://events.7tv.app/v1/channel-emotes?&channel=${Chat.info.channel}`
+        );
 
-            global_emotes.forEach(emote => {
-                Chat.info.emotes[emote.name] = {
-                    id: emote.id,
-                    image: `https://itzalex.github.io/emote/${emote.id}/3x`
-                };
-            });
+        source.addEventListener(
+            "update",
+            (e) => {
+                // This is a JSON payload matching the type for the specified event channel
+                const data = JSON.parse(e.data);
 
-            if (channelID in channel_emotes) {
-                channel_emotes[channelID].emotes.forEach(emote => {
-                    Chat.info.emotes[emote.name] = {
-                        id: emote.id,
-                        image: `https://itzalex.github.io/emote/${emote.id}/3x`
-                    };
-                });
-            }
-        });
+                if (data.action === "REMOVE") {
+                    delete Chat.info.emotes[data.name];
+                }
+
+                if (data.action === "ADD") {
+                    Chat.info.emotes[data.name] = {
+                        id: data.id,
+                        image: data.emote.urls[data.emote.urls.length - 1][1],
+                        zeroWidth: data.emote.visibilit === 128,
+                    }
+                }
+            },
+            false
+        );
     },
 
     load: function (callback) {
-        myAPI("/users?login=" + Chat.info.channel).done(function (res) {
-            //res = res['Message'];
-            res = res.data[0]
+        myAPI("users?login=" + Chat.info.channel).then(async function (res) {
+            res = await res.json();
+            res = res.data.data[0]
             Chat.info.channelID = res.id;
             Chat.loadEmotes(Chat.info.channelID);
+            Chat.init_7tv_eventsub();
+            Chat.loadCosmetics(Chat.info.channelID)
 
             // Load CSS
             switch (Chat.info.size) {
@@ -396,36 +499,12 @@ Chat = {
                     .fail(function () {
                         Chat.info.chatterinoBadges = [];
                     });
-
-                $.getJSON('https://itzalex.github.io/badges')
-                    .done(function (res) {
-                        Chat.info.homiesBadges = res.badges;
-                    })
-                    .fail(function () {
-                        Chat.info.homiesBadges = [];
-                    });
-
-                $.getJSON('https://itzalex.github.io/badges2')
-                    .done(function (res) {
-                        Chat.info.homiesBadges2 = res.badges;
-                    })
-                    .fail(function () {
-                        Chat.info.homiesBadges2 = [];
-                    });
-
-                $.getJSON('https://chatterinohomies.com/api/badges/list')
-                    .done(function (res) {
-                        Chat.info.homiesBadges3 = res.badges;
-                    })
-                    .fail(function () {
-                        Chat.info.homiesBadges3 = [];
-                    });
             }
 
             // Load cheers images
-            myAPI("/bits/cheermotes?broadcaster_id=" + Chat.info.channelID).done(function (res) {
-                //res = res['Message']
-                res = res.data
+            myAPI("bits/cheermotes?broadcaster_id=" + Chat.info.channelID).then(async function (res) {
+                res = await res.json()
+                res = res.data.data
                 res.forEach(action => {
                     Chat.info.cheers[action.prefix] = {}
                     action.tiers.forEach(tier => {
@@ -543,37 +622,6 @@ Chat = {
                     }
                 });
             });
-            Chat.info.homiesBadges.forEach(badge => {
-                badge.users.forEach(user => {
-                    if (user === userId) {
-                        var userBadge = {
-                            description: badge.tooltip,
-                            url: badge.image3
-                        };
-                        if (!Chat.info.userBadges[nick].includes(userBadge)) Chat.info.userBadges[nick].push(userBadge);
-                    }
-                });
-            });
-            Chat.info.homiesBadges2.forEach(badge => {
-                badge.users.forEach(user => {
-                    if (user === userId) {
-                        var userBadge = {
-                            description: badge.tooltip,
-                            url: badge.image3
-                        };
-                        if (!Chat.info.userBadges[nick].includes(userBadge)) Chat.info.userBadges[nick].push(userBadge);
-                    }
-                });
-            });
-            Chat.info.homiesBadges3.forEach(badge => {
-                if (badge.userId == userId) {
-                    var userBadge = {
-                        description: badge.tooltip,
-                        url: badge.image3
-                    };
-                    if (!Chat.info.userBadges[nick].includes(userBadge)) Chat.info.userBadges[nick].push(userBadge);
-                }
-            });
         });
     },
 
@@ -660,6 +708,12 @@ Chat = {
             }
             $username.css('color', color);
             $username.html(info['display-name'] ? info['display-name'] : nick);
+            if (Chat.info.seventvPaints) {
+                let paintCSS = Chat.calcPaintsCSS(nick);
+                if (paintCSS)
+                    for (let [key, value] of entries(paintCSS))
+                        $username.attr('style', $username.attr('style') + `${key}: ${value};`)
+            }
             $userInfo.append($username);
 
             // Writing message
@@ -813,33 +867,22 @@ Chat = {
                         case "PRIVMSG":
                             if (message.params[0] !== '#' + channel || !message.params[1]) return;
                             var nick = message.prefix.split('@')[0].split('!')[0];
+                            if ((message.params[1].toLowerCase() === "!refreshoverlay" || message.params[1].toLowerCase() === "!r") && typeof (message.tags.badges) === 'string') {
+                                const badges_str = message.tags.badges;
 
-                            if (message.params[1].toLowerCase() === "!refreshoverlay" && typeof (message.tags.badges) === 'string') {
-                                var flag = false;
-
-                                if (nick === "itzalexpl" || nick === "giambaj") {
-                                    flag = true;
-                                    console.log('Dev jChat: Emotes refreshed (!refreshoverlay)');
-                                }
-                                else {
-                                    message.tags.badges.split(',').forEach(badge => {
-                                        badge = badge.split('/');
-                                        if (badge[0] === "moderator" || badge[0] === "broadcaster") {
-                                            console.log('jChat: Emotes refreshed (!refreshoverlay)');
-                                            flag = true;
-                                            return;
-                                        }
-                                    });
-                                }
-
-                                if (flag) {
+                                if (
+                                    nick === "aRandomFinn" ||
+                                    nick === "pepega00000" ||
+                                    badges_str.includes("broadcaster") ||
+                                    badges_str.includes("vip") ||
+                                    badges_str.includes("moderator")
+                                ) {
                                     Chat.loadEmotes(Chat.info.channelID);
                                     console.log('jChat: Refreshing emotes...');
                                     return;
                                 }
                             }
 
-                            console.log(Chat.info.emote_blocklist);
                             for (const e of Chat.info.emote_blocklist) {
                                 if (message.params[1].split(" ").includes(e)) return;
                             }
@@ -857,7 +900,7 @@ Chat = {
                             }
 
                             if (!Chat.info.hideBadges) {
-                                if (Chat.info.bttvBadges && Chat.info.seventvBadges && Chat.info.chatterinoBadges && Chat.info.ffzapBadges && Chat.info.homiesBadges && Chat.info.homiesBadges2 && Chat.info.homiesBadges3 && !Chat.info.userBadges[nick]) Chat.loadUserBadges(nick, message.tags['user-id']);
+                                if (Chat.info.bttvBadges && Chat.info.seventvBadges && Chat.info.chatterinoBadges && Chat.info.ffzapBadges && !Chat.info.userBadges[nick]) Chat.loadUserBadges(nick, message.tags['user-id']);
                             }
 
                             Chat.write(nick, message.tags, message.params[1]);
