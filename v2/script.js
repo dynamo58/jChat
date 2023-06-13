@@ -643,7 +643,7 @@ Chat = {
                         var $badge = $('<img/>');
                         $badge.addClass('badge');
                         badge = badge.split('/');
-                        $badge.attr('src', Chat.info.badges[badge[0] + ':' + badge[1]]);
+                        $badge.attr('src', Chat.info.badges.replace("/", ":"));
                         $userInfo.append($badge);
                     });
                 }
@@ -652,13 +652,16 @@ Chat = {
                 const priorityBadges = ['predictions', 'admin', 'global_mod', 'staff', 'twitchbot', 'broadcaster', 'moderator', 'vip'];
                 if (typeof (info.badges) === 'string') {
                     info.badges.split(',').forEach(badge => {
-                        console.log("user", nick, "has badge", badge.replace("/", ":"))
+                        let badge_str = badge.replace("/", ":");
+                        console.log("user", nick, "has badge", badge_str)
                         var priority = (priorityBadges.includes(badge[0]) ? true : false);
                         badges.push({
                             description: badge[0],
-                            url: Chat.info.badges[badge.replace("/", ":")],
+                            url: Chat.info.badges[badge_str],
                             priority: priority
                         });
+
+                        console.log(badges[-1])
                     });
                 }
                 var $modBadge;
