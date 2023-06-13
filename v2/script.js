@@ -453,18 +453,18 @@ Chat = {
                         Chat.info.badges[badge.set_id + ':' + v[1].id] = v[1].image_url_4x;
                     });
                 });
-            });
 
-            myAPI("chat/badges?broadcaster_id=" + encodeURIComponent(Chat.info.channelID)).then(async function (res) {
-                console.log(res)
-                let json = await res.json();
-                console.log(json);
-                let badges = (json).data.data;
-                console.log(badges)
+                myAPI("chat/badges?broadcaster_id=" + encodeURIComponent(Chat.info.channelID)).then(async function (res) {
+                    console.log(res)
+                    let json = await res.json();
+                    console.log(json);
+                    let badges = (json).data.data;
+                    console.log(badges)
 
-                badges.forEach(badge => {
-                    Object.entries(badge.versions).forEach(v => {
-                        Chat.info.badges[badge.set_id + ':' + v[1].id] = v[1].image_url_4x;
+                    badges.forEach(badge => {
+                        Object.entries(badge.versions).forEach(v => {
+                            Chat.info.badges[badge.set_id + ':' + v[1].id] = v[1].image_url_4x;
+                        });
                     });
                 });
             });
@@ -653,19 +653,18 @@ Chat = {
                 if (typeof (info.badges) === 'string') {
                     info.badges.split(',').forEach(badge => {
                         let badge_str = badge.replace("/", ":");
-                        console.log("user", nick, "has badge", badge_str)
+                        // console.log("user", nick, "has badge", badge_str)
                         var priority = (priorityBadges.includes(badge[0]) ? true : false);
                         badges.push({
                             description: badge[0],
                             url: Chat.info.badges[badge_str],
                             priority: priority
                         });
-
-                        console.log(badges[-1])
                     });
                 }
                 var $modBadge;
                 badges.forEach(badge => {
+                    // console.log(badge)
                     if (badge.priority) {
                         var $badge = $('<img/>');
                         $badge.addClass('badge');
