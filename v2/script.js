@@ -444,26 +444,27 @@ Chat = {
                 }).appendTo("head");
             }
 
-            // Load badges
-            $.getJSON('https://badges.twitch.tv/v1/badges/global/display').done(function (global) {
-                Object.entries(global.badge_sets).forEach(badge => {
-                    Object.entries(badge[1].versions).forEach(v => {
-                        Chat.info.badges[badge[0] + ':' + v[0]] = v[1].image_url_4x;
+            console.log("baddd")
+            myAPI("chat/badges/global").then(async function (res) {
+                let badges = (await res.json()).data.data;
+
+                badges.forEach(badge => {
+                    Object.entries(badge.versions).forEach(v => {
+                        Chat.info.badges[badge.set_id + ':' + v[1].id] = v[1].image_url_4x;
                     });
                 });
-                $.getJSON('https://badges.twitch.tv/v1/badges/channels/' + encodeURIComponent(Chat.info.channelID) + '/display').done(function (channel) {
-                    Object.entries(channel.badge_sets).forEach(badge => {
-                        Object.entries(badge[1].versions).forEach(v => {
-                            Chat.info.badges[badge[0] + ':' + v[0]] = v[1].image_url_4x;
-                        });
-                    });
-                    $.getJSON('https://api.frankerfacez.com/v1/_room/id/' + encodeURIComponent(Chat.info.channelID)).done(function (res) {
-                        if (res.room.moderator_badge) {
-                            Chat.info.badges['moderator:1'] = 'https://cdn.frankerfacez.com/room-badge/mod/' + Chat.info.channel + '/4/rounded';
-                        }
-                        if (res.room.vip_badge) {
-                            Chat.info.badges['vip:1'] = 'https://cdn.frankerfacez.com/room-badge/vip/' + Chat.info.channel + '/4';
-                        }
+            });
+
+            myAPI("chat/badges?broadcaster_id=" + encodeURIComponent(Chat.info.channelID)).then(async function (res) {
+                console.log(res)
+                let json = await res.json();
+                console.log(json);
+                let badges = (json).data.data;
+                console.log(badges)
+
+                badges.forEach(badge => {
+                    Object.entries(badge.versions).forEach(v => {
+                        Chat.info.badges[badge.set_id + ':' + v[1].id] = v[1].image_url_4x;
                     });
                 });
             });
@@ -651,11 +652,11 @@ Chat = {
                 const priorityBadges = ['predictions', 'admin', 'global_mod', 'staff', 'twitchbot', 'broadcaster', 'moderator', 'vip'];
                 if (typeof (info.badges) === 'string') {
                     info.badges.split(',').forEach(badge => {
-                        badge = badge.split('/');
+                        console.log("user", nick, "has badge", badge.replace("/", ":"))
                         var priority = (priorityBadges.includes(badge[0]) ? true : false);
                         badges.push({
                             description: badge[0],
-                            url: Chat.info.badges[badge[0] + ':' + badge[1]],
+                            url: Chat.info.badges[badge.replace("/", ":")],
                             priority: priority
                         });
                     });
