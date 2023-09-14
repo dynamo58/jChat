@@ -870,7 +870,8 @@ Chat = {
                         case "PRIVMSG":
                             if (message.params[0] !== '#' + channel || !message.params[1]) return;
                             var nick = message.prefix.split('@')[0].split('!')[0];
-                            if ((message.params[1].toLowerCase() === "!refreshoverlay" || message.params[1].toLowerCase() === "!r") && typeof (message.tags.badges) === 'string') {
+                            let msg_lower = message.params[1].toLowerCase();
+                            if ((msg_lower === "!refreshoverlay" || msg_lower === "!r") && typeof (message.tags.badges) === 'string') {
                                 const badges_str = message.tags.badges;
 
                                 if (
@@ -880,8 +881,7 @@ Chat = {
                                     badges_str.includes("vip") ||
                                     badges_str.includes("moderator")
                                 ) {
-                                    Chat.loadEmotes(Chat.info.channelID);
-                                    console.log('jChat: Refreshing emotes...');
+                                    window.location.reload();
                                     return;
                                 }
                             }
